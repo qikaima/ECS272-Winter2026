@@ -1,64 +1,59 @@
-import Example from './components/Example'
-import Chart2 from './components/Chart2'
-import Chart3 from './components/Chart3'
-import Notes from './components/Notes'
-import { NotesWithReducer, CountProvider } from './components/NotesWithReducer';
-import Grid from '@mui/material/Grid';
-import Stack from '@mui/material/Stack';
+import React, { useState } from 'react';
+import Example from './components/Example';
+import Chart2 from './components/Chart2';
+import Chart3 from './components/Chart3';
 import Box from '@mui/material/Box';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { grey } from '@mui/material/colors';
 
-// Adjust the color theme for material ui
 const theme = createTheme({
   palette: {
-    primary:{
-      main: grey[700],
-    },
-    secondary:{
-      main: grey[700],
-    }
+    primary: { main: grey[700] },
+    secondary: { main: grey[700] },
   },
-})
-
-// For how Grid works, refer to https://mui.com/material-ui/react-grid/
+});
 
 function Layout() {
+  const [selectedSupergenre, setSelectedSupergenre] = useState<string | null>(null);
+
   return (
     <Box
       id="main-container"
       sx={{
-        height: '100vh',  
+        height: '100vh',
         width: '100%',
-        overflowY: 'auto',  
+        overflowY: 'auto',
         padding: 1,
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
       }}
     >
-      {/* Chart1 */}
-      <Box sx={{ height: '60vh', width: '100%', mb: 2 }}>
-        <Example />
+      <Box sx={{ display: 'flex', height: '60%', gap: 1, mb: 1 }}>
+        {/* barchart*/}
+        <Box sx={{ flex: 1, bgcolor: 'white', borderRadius: 1, boxShadow: 1 }}>
+          <Example
+            selectedSupergenre={selectedSupergenre}
+            onSelectSupergenre={setSelectedSupergenre}
+          />
+        </Box>
+
+        {/* heatmap */}
+        <Box sx={{ flex: 1, bgcolor: 'white', borderRadius: 1, boxShadow: 1 }}>
+          <Chart2 selectedSupergenre={selectedSupergenre} />
+        </Box>
       </Box>
 
-      {/* Chart2 */}
-      <Box sx={{ height: '60vh', width: '100%', mb: 2 }}>
-        <Chart2 />
-      </Box>
-
-      {/* Chart3 */}
-      <Box sx={{ height: '60vh', width: '100%', mb: 2 }}>
+      {/* Sankey */}
+      <Box sx={{ flex: 1, height: '40%', bgcolor: 'white', borderRadius: 1, boxShadow: 1, minHeight: 0 }}>
         <Chart3 />
       </Box>
     </Box>
   );
 }
 
-function App() {
+export default function App() {
   return (
     <ThemeProvider theme={theme}>
       <Layout />
     </ThemeProvider>
-  )
+  );
 }
-
-export default App

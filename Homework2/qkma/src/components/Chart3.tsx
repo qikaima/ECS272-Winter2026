@@ -6,6 +6,7 @@ import {
   SankeyNode,
   SankeyLink,
 } from 'd3-sankey';
+import { classifyGenre } from '../classify';
 
 interface MyNode {
   name: string;
@@ -27,7 +28,8 @@ export default function SankeyChart() {
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   const margin = { top: 0.2, right: 0.05, bottom: 0.05, left: 0.05 };
-  const layerNames = ['Genre', 'Age Category', 'Movie Adaptation', 'Bestseller Status'];
+  const layerNames = ['Supergenre', 'Age Category', 'Movie Adaptation', 'Bestseller Status'];
+  const lightBlue = '#aeddff';
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver(entries => {
@@ -50,12 +52,6 @@ export default function SankeyChart() {
       const rawData = await d3.csv('../../data/top_1000_most_swapped_books.csv');
       if (!rawData || rawData.length === 0) return;
 
-      const genreCounts = d3.rollup(rawData, v => v.length, d => d.genre as string);
-      const topGenres = Array.from(genreCounts.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(d => d[0]);
-
       const nodeMap = new Map<string, MyNode>();
       const linkMap = new Map<string, number>();
 
@@ -69,22 +65,21 @@ export default function SankeyChart() {
       };
 
       rawData.forEach(d => {
-        const genre = d.genre as string;
-        if (!topGenres.includes(genre)) return;
-
+        const supergenre = classifyGenre(d.genre ?? 'Other');
         const age = d.age_category as string;
+        if (!age || age === 'Unknown') return;
+
         const isBestseller = String(d.bestseller_status).toLowerCase() === 'true';
         const isMovie = String(d.adapted_to_movie).toLowerCase() === 'true';
 
         const bestsellerStatus = isBestseller ? 'Bestseller' : 'Not Bestseller';
         const movieStatus = isMovie ? 'Adapted To Movie' : 'Not Adapted To Movie';
-
-        addNode(genre, 0);
+        addNode(supergenre, 0);
         addNode(age, 1);
         addNode(movieStatus, 2);
         addNode(bestsellerStatus, 3);
 
-        addLink(genre, age);
+        addLink(supergenre, age);
         addLink(age, movieStatus);
         addLink(movieStatus, bestsellerStatus);
       });
@@ -114,8 +109,8 @@ export default function SankeyChart() {
     const sankey = d3Sankey<MyNode, MyLink>()
       .nodeId(d => d.name)
       .nodeAlign(d => d.layer)
-      .nodeWidth(18)
-      .nodePadding(14)
+      .nodeWidth(20) 
+      .nodePadding(12)
       .extent([[0, 0], [widthInner, heightInner]]);
 
     const { nodes, links }: {
@@ -130,35 +125,24 @@ export default function SankeyChart() {
       .append('g')
       .attr('transform', `translate(${size.width * margin.left}, ${size.height * margin.top})`);
 
-    const myColors = [
-      '#1466a1', '#4daaed', '#119667', '#7cc37c',
-      '#a0dba0', '#aeddff', '#1fa284', '#55ecc8',
-      '#91c1b6', '#a3de79'
-    ];
-
-    const nodeColorMap = new Map<string, string>();
-    nodes.forEach((node, i) => {
-      nodeColorMap.set(node.name, myColors[i % myColors.length]);
-    });
-
     // title
     svg.append('text')
       .attr('x', size.width / 2)
       .attr('y', size.height * margin.top / 2)
       .attr('text-anchor', 'middle')
-      .style('font-size', `${0.025 * size.width}px`)
+      .style('font-size', `${Math.max(16, 0.01 * size.width)}px`)
       .style('font-weight', 'bold')
-      .text('Top 1000 Swapped Books Sankey Diagram');
+      .text('Top 1000 Swaped Book Sankey Diagram by Supergenre');
 
     // links
     g.append('g')
       .attr('fill', 'none')
-      .attr('stroke-opacity', 0.35)
+      .attr('stroke-opacity', 0.4)
       .selectAll('path')
       .data(links)
       .join('path')
       .attr('d', sankeyLinkHorizontal())
-      .attr('stroke', d => nodeColorMap.get((d.source as SankeyNode<MyNode, MyLink>).name)!)
+      .attr('stroke', '#adae9e')
       .attr('stroke-width', d => Math.max(1, d.width ?? 1));
 
     // nodes
@@ -172,26 +156,30 @@ export default function SankeyChart() {
     nodeG.append('rect')
       .attr('width', d => d.x1! - d.x0!)
       .attr('height', d => d.y1! - d.y0!)
-      .attr('fill', d => nodeColorMap.get(d.name)!)
-      .attr('stroke', '#333');
+      .attr('fill', '#adae9e') 
+      .attr('stroke', '#666')
+      .attr('stroke-width', '0.5px');
 
     nodeG.append('text')
       .attr('x', d => (d.x1! - d.x0!) / 2)
       .attr('y', d => (d.y1! - d.y0!) / 2)
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'middle')
-      .style('font-size', `${0.01 * size.width}px`)
+      .style('font-size', `${Math.max(10, 0.009 * size.width)}px`)
       .style('pointer-events', 'none')
+      .style('fill', '#333')
       .text(d => d.name);
 
-    // label for each nodes
+    // column labels
     layerNames.forEach((layerName, i) => {
+      const xPos = d3.mean(nodes.filter(n => n.layer === i), n => n.x0!) ?? 0;
       g.append('text')
-        .attr('x', d3.mean(nodes.filter(n => n.layer === i), n => n.x0!) ?? (i * 200))
-        .attr('y', -10)
+        .attr('x', xPos)
+        .attr('y', -15)
         .attr('text-anchor', 'middle')
-        .style('font-size', `${0.018 * size.width}px`)
-        .style('font-weight', 'none')
+        .style('font-size', `${Math.max(12, 0.008 * size.width)}px`)
+        .style('font-weight', '600')
+        .style('fill', '#555')
         .text(layerName);
     });
 
@@ -200,7 +188,7 @@ export default function SankeyChart() {
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height: '80vh', boxSizing: 'border-box' }}
+      style={{ width: '100%', height: '100%', boxSizing: 'border-box', background: '#dbdcd0' }}
     >
       <svg ref={svgRef} width="100%" height="100%" />
     </div>
